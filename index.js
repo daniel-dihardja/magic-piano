@@ -2,7 +2,8 @@
  * Created by danieldihardja on 22.08.19.
  */
 import * as mm from '@magenta/music';
-import {Observable} from 'rxjs';
+import {Observable, fromEvent, merge, forkJoin, combineLatest} from 'rxjs';
+import {startWith} from 'rxjs/operators';
 
 const genieCheckpoint = 'https://storage.googleapis.com/magentadata/js/checkpoints/piano_genie/model/epiano/stp_iq_auto_contour_dt_166006';
 
@@ -15,8 +16,6 @@ let mout;
 
 let keyMap = {};
 
-
-/*
 const initGenie = (checkpoint, whiteKeys, tempr) => {
   return new Observable(observer => {
     const genie = new mm.PianoGenie(checkpoint);
@@ -27,14 +26,53 @@ const initGenie = (checkpoint, whiteKeys, tempr) => {
         console.log('genie ready');
         observer.next(genie);
       });
-
   });
 };
 
-initGenie(genieCheckpoint, kw, temp)
-  .subscribe(e => console.log(e));
-*/
+const keyDown$ = fromEvent(window, 'keydown').pipe(startWith({}));
+const keyUp$ = fromEvent(window, 'keyup').pipe(startWith({}));
+const event$ = merge(keyDown$, keyUp$);
+event$.subscribe(e => console.log(e));
 
+const initMidi = () => {
+  return new Observable(observer => {
+
+    navigator.requestMIDIAccess()
+    .then(e => {
+      let mout;
+      let min;
+
+      for(let o of e.outputs.values()) {
+        mout = o;
+      }
+      for(let i of e.inputs.values()) {
+        min = i;
+      }
+      observer.next({
+        in: min,
+        out: mout,
+        msg: []
+      });
+
+      console.log('midi');
+
+      min.onmidimessage = data => {
+        observer.next({
+          in: min,
+          out: mout,
+          msg: data.data
+        });
+      };
+    });
+  })
+};
+
+combineLatest(
+  initGenie(genieCheckpoint, kw, temp),
+  initMidi()
+).subscribe(e => console.log('***', e));
+
+/*
 const genie = new mm.PianoGenie(genieCheckpoint);
 genie.initialize()
   .then(e => {
@@ -72,3 +110,6 @@ navigator.requestMIDIAccess()
     };
     console.log('midi enable');
   });
+*/
+
+
