@@ -3,18 +3,27 @@
  */
 import * as mm from '@magenta/music';
 import {Observable, fromEvent, merge, forkJoin, combineLatest} from 'rxjs';
-import {startWith} from 'rxjs/operators';
+import {tap, map} from 'rxjs/operators';
 
-const genieCheckpoint = 'https://storage.googleapis.com/magentadata/js/checkpoints/piano_genie/model/epiano/stp_iq_auto_contour_dt_166006';
+const config = {
+  kw: [... Array(88).keys()],
+  tempr: 0.5,
+  lowestMidiNote : 21,
+  genieCheckpoint : 'https://storage.googleapis.com/magentadata/js/checkpoints/piano_genie/model/epiano/stp_iq_auto_contour_dt_166006',
+  midiMapping: {
+    0: 48,
+    1: 50,
+    2: 52,
+    3: 53,
+    4: 55,
+    5: 57,
+    6: 59,
+    7: 60
+  }
+};
 
-const kw = [... Array(88).keys()];
-const temp = 0.5;
-const lowestMidiNote = 21;
-
-const midiOutName = 'IAC Driver P1';
-let mout;
-
-let keyMap = {};
+const keyDown$ = fromEvent(window, 'keydown');
+const keyUp$ = fromEvent(window, 'keyup');
 
 const initGenie = (checkpoint, whiteKeys, tempr) => {
   return new Observable(observer => {
@@ -28,12 +37,6 @@ const initGenie = (checkpoint, whiteKeys, tempr) => {
       });
   });
 };
-
-const keyDown$ = fromEvent(window, 'keydown').pipe(startWith({}));
-const keyUp$ = fromEvent(window, 'keyup').pipe(startWith({}));
-const event$ = merge(keyDown$, keyUp$);
-event$.subscribe(e => console.log(e));
-
 const initMidi = () => {
   return new Observable(observer => {
 
@@ -66,11 +69,21 @@ const initMidi = () => {
     });
   })
 };
+const magic = e => {
+  console.log(e);
+};
 
 combineLatest(
-  initGenie(genieCheckpoint, kw, temp),
-  initMidi()
-).subscribe(e => console.log('***', e));
+  initGenie(config.genieCheckpoint, config.kw, config.tempr),
+  initMidi(),
+  merge(keyDown$, keyUp$)
+)
+.pipe(tap(e => magic(e) ))
+.subscribe();
+
+
+
+
 
 /*
 const genie = new mm.PianoGenie(genieCheckpoint);
