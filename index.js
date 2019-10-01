@@ -23,50 +23,46 @@ const config = {
 };
 
 const keyMap = {};
-
 const keyDown$ = fromEvent(window, 'keydown');
 const keyUp$ = fromEvent(window, 'keyup');
 
-const initGenie = (checkpoint, whiteKeys, tempr) => {
-  return new Observable(observer => {
-    const genie = new mm.PianoGenie(checkpoint);
-    genie.initialize()
-      .then(e => {
-        genie.nextFromKeyWhitelist(0, whiteKeys, tempr);
-        genie.resetState();
-        console.log('genie ready');
-        observer.next(genie);
-      });
-  });
-};
 
-const initMidi = () => {
-  return new Observable(observer => {
-
-    navigator.requestMIDIAccess()
+const initGenie = (checkpoint, whiteKeys, tempr) => new Observable(observer => {
+  const genie = new mm.PianoGenie(checkpoint);
+  genie.initialize()
     .then(e => {
+      genie.nextFromKeyWhitelist(0, whiteKeys, tempr);
+      genie.resetState();
+      console.log('genie ready');
+      observer.next(genie);
+    });
+});
 
-      let mout = [...e.outputs.values()][0];
-      let min = [...e.inputs.values()][1];
 
+
+const initMidi = () => new Observable(observer => {
+  navigator.requestMIDIAccess()
+  .then(e => {
+
+    let mout = [...e.outputs.values()][0];
+    let min = [...e.inputs.values()][1];
+
+    observer.next({
+      in: min,
+      out: mout,
+      msg: []
+    });
+    
+    min.onmidimessage = data => {
       observer.next({
         in: min,
         out: mout,
-        msg: []
+        msg: data.data
       });
+    };
+  });
+});
 
-      console.log('midi');
-
-      min.onmidimessage = data => {
-        observer.next({
-          in: min,
-          out: mout,
-          msg: data.data
-        });
-      };
-    });
-  })
-};
 
 const magic = e => {
   const cfg = e[0];
